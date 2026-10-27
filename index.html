@@ -153,7 +153,7 @@ table.p-tbl col.qty,table.p-tbl col.unit,table.p-tbl col.tot{width:94px}
 .p-sign .cursive{font-family:var(--script);font-size:38px;line-height:1;color:var(--paper-ink)}
 .p-sign .ln{border-top:1.5px solid var(--paper-ink);margin-top:4px;padding-top:4px;font-size:12px;color:var(--paper-soft)}
 .p-note{font-size:13px;color:var(--paper-soft);margin-top:18px;white-space:pre-line}
-.p-pageno{font-size:12px;color:var(--paper-soft);padding:14px 54px 20px}
+.p-pageno{font-size:12px;color:var(--paper-soft);text-align:center;letter-spacing:.3px;margin:0 54px;padding:12px 0 20px;border-top:1px solid #d8d8da}
 
 /* Summary document */
 .sum-intro{font-size:14.5px;line-height:1.65;margin:4px 0 18px}
@@ -213,7 +213,7 @@ table.p-tbl col.qty,table.p-tbl col.unit,table.p-tbl col.tot{width:94px}
   .p-service{margin:2px 0 14px}
   .p-foot{margin-top:20px}
   .p-note{margin-top:12px}
-  .p-pageno{padding:10px 46px 12px}
+  .p-pageno{margin:0 46px;padding:10px 0 12px}
   table.p-tbl thead th{padding:10px 12px}
   table.p-tbl tbody td{padding:10px 12px}
   .sumrow td{padding:11px 12px}
@@ -221,7 +221,7 @@ table.p-tbl col.qty,table.p-tbl col.unit,table.p-tbl col.tot{width:94px}
 }
 @media (max-width:420px){
   .p-head{padding:28px 22px 46px}.p-head h1{font-size:38px}.p-pad{padding:0 20px 28px}
-  .p-pageno{padding:14px 22px}.p-card{grid-template-columns:1fr}
+  .p-pageno{margin:0 22px;padding:12px 0 16px}.p-card{grid-template-columns:1fr}
 }
 </style>
 
@@ -332,6 +332,9 @@ table.p-tbl col.qty,table.p-tbl col.unit,table.p-tbl col.tot{width:94px}
           <label class="f">Footer note (optional)
             <textarea id="note" oninput="bind()" placeholder="e.g. Thank you for your business. Payment due within 14 days."></textarea>
           </label>
+          <label class="f">Document footer line
+            <input id="footer" oninput="bind()" placeholder="Centered line at the very bottom (e.g. your name or a thank-you)">
+          </label>
         </div>
       </details>
 
@@ -369,8 +372,9 @@ table.p-tbl col.qty,table.p-tbl col.unit,table.p-tbl col.tot{width:94px}
       <button class="theme-toggle" id="themeBtn" title="Toggle dark mode" onclick="toggleTheme()">◐</button>
       <button class="btn ghost" onclick="openHistory()">History</button>
       <button class="btn ghost" id="saveBtn" onclick="saveToHistory(true)">Save</button>
-      <button class="btn ghost" onclick="printDoc('summary')">Print summary</button>
-      <button class="btn primary" onclick="printDoc('invoice')">Save / Print PDF</button>
+      <button class="btn ghost" onclick="printDoc('invoice')">Print</button>
+      <button class="btn ghost" onclick="downloadPDF('summary', this)">Summary PDF</button>
+      <button class="btn primary" onclick="downloadPDF('invoice', this)">Download PDF</button>
     </div>
 
     <div class="stage">
@@ -412,7 +416,7 @@ table.p-tbl col.qty,table.p-tbl col.unit,table.p-tbl col.tot{width:94px}
           </div>
           <div class="p-note" id="pNote"></div>
         </div>
-        <div class="p-pageno">Page 1 of 1</div>
+        <div class="p-pageno" id="pFoot"></div>
       </div>
 
       <!-- SUMMARY DOC -->
@@ -445,7 +449,7 @@ table.p-tbl col.qty,table.p-tbl col.unit,table.p-tbl col.tot{width:94px}
             </div>
           </div>
         </div>
-        <div class="p-pageno">Confidential delivery summary</div>
+        <div class="p-pageno" id="sFoot"></div>
       </div>
     </div>
   </section>
@@ -462,6 +466,8 @@ table.p-tbl col.qty,table.p-tbl col.unit,table.p-tbl col.tot{width:94px}
   </div>
 </aside>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
 "use strict";
 var LS_PROFILE="iqs.profile.v1", LS_DOC="iqs.doc.v1", LS_THEME="iqs.theme.v1", LS_HIST="iqs.history.v1";
@@ -476,7 +482,8 @@ function defaultProfile(){return{
   payAccNo:"",
   paySort:"",
   sigName:"",
-  sigImg:""
+  sigImg:"",
+  footer:""
 };}
 function defaultDoc(){return{
   mode:"invoice",
@@ -592,7 +599,7 @@ function bindField(id,obj,key){var el=document.getElementById(id);if(!el)return;
 function bind(){
   bindField("fromName",profile,"fromName");bindField("fromAddr",profile,"fromAddr");bindField("fromPhone",profile,"fromPhone");
   bindField("payAccName",profile,"payAccName");bindField("payBank",profile,"payBank");
-  bindField("payAccNo",profile,"payAccNo");bindField("paySort",profile,"paySort");bindField("sigName",profile,"sigName");
+  bindField("payAccNo",profile,"payAccNo");bindField("paySort",profile,"paySort");bindField("sigName",profile,"sigName");bindField("footer",profile,"footer");
   bindField("toName",doc,"toName");bindField("toAddr",doc,"toAddr");
   bindField("docNo",doc,"docNo");bindField("docDate",doc,"docDate");bindField("validUntil",doc,"validUntil");
   bindField("svcTitle",doc,"svcTitle");bindField("svcPeriod",doc,"svcPeriod");
@@ -601,7 +608,7 @@ function bind(){
 }
 function fillInputs(){
   var map={fromName:profile.fromName,fromAddr:profile.fromAddr,fromPhone:profile.fromPhone,
-    payAccName:profile.payAccName,payBank:profile.payBank,payAccNo:profile.payAccNo,paySort:profile.paySort,sigName:profile.sigName,
+    payAccName:profile.payAccName,payBank:profile.payBank,payAccNo:profile.payAccNo,paySort:profile.paySort,sigName:profile.sigName,footer:profile.footer,
     toName:doc.toName,toAddr:doc.toAddr,docNo:doc.docNo,docDate:doc.docDate,validUntil:doc.validUntil,
     svcTitle:doc.svcTitle,svcPeriod:doc.svcPeriod,currency:doc.currency,note:doc.note};
   Object.keys(map).forEach(function(k){var el=document.getElementById(k);if(el)el.value=map[k]==null?"":map[k];});
@@ -744,6 +751,11 @@ function render(){
   document.getElementById("pSigName").textContent=profile.sigName||profile.fromName||"";
   var noteEl=document.getElementById("pNote");noteEl.textContent=doc.note||"";noteEl.hidden=!doc.note;
 
+  // branded document footer (replaces the old "Page 1 of 1" line)
+  var ft=(profile.footer&&profile.footer.trim())?profile.footer:([profile.fromName,doc.docNo].filter(Boolean).join("  ·  ")||"Thank you for your business.");
+  var pf=document.getElementById("pFoot");if(pf)pf.textContent=ft;
+  var sf=document.getElementById("sFoot");if(sf)sf.textContent=ft;
+
   // summary doc
   var s=summarize();
   document.getElementById("sNo").textContent=doc.docNo||"";
@@ -808,6 +820,30 @@ function histDel(id){hist=hist.filter(function(e){return e.id!==id;});saveHist()
 function histClearAll(btn){
   if(!clearArm){clearArm=true;btn.textContent="Confirm clear";clearTimer=setTimeout(function(){clearArm=false;btn.textContent="Clear all";},2500);return;}
   clearTimeout(clearTimer);clearArm=false;btn.textContent="Clear all";hist=[];saveHist();renderHistory();
+}
+
+/* ---------- download pdf (self-generated: no browser header, URL or file path) ---------- */
+function downloadPDF(which, btn){
+  setView(which);
+  saveToHistory(false);
+  var el = which==="summary" ? document.getElementById("docSummary") : document.getElementById("docInvoice");
+  var label; if(btn){label=btn.textContent;btn.textContent="Preparing…";btn.disabled=true;}
+  function restore(){ if(btn){btn.textContent=label;btn.disabled=false;} }
+  if(!window.html2canvas || !window.jspdf){ alert("PDF tools are still loading. Check your connection and try again in a moment."); restore(); return; }
+  var ready=(document.fonts&&document.fonts.ready)?document.fonts.ready:Promise.resolve();
+  ready.then(function(){
+    return html2canvas(el,{scale:Math.min(3,(window.devicePixelRatio||1)+1),backgroundColor:"#ededed",useCORS:true,logging:false});
+  }).then(function(canvas){
+    var JS=window.jspdf.jsPDF, pdf=new JS("p","mm","a4");
+    var pw=pdf.internal.pageSize.getWidth(), ph=pdf.internal.pageSize.getHeight();
+    var iw=pw, ih=canvas.height*pw/canvas.width, img=canvas.toDataURL("image/jpeg",0.96);
+    if(ih<=ph+0.5){ pdf.addImage(img,"JPEG",0,0,iw,ih); }
+    else { var pos=0; while(pos<ih){ pdf.addImage(img,"JPEG",0,-pos,iw,ih); pos+=ph; if(pos<ih-0.5) pdf.addPage(); } }
+    var base=(doc.docNo||(which==="summary"?"Summary":"Invoice"));
+    if(doc.toName) base+=" - "+doc.toName;
+    if(which==="summary") base+=" (Work Summary)";
+    pdf.save(base.replace(/[\/\\:*?"<>|]+/g,"").trim()+".pdf");
+  }).catch(function(e){ alert("Sorry, the PDF could not be generated: "+(e&&e.message?e.message:e)); }).then(restore);
 }
 
 /* ---------- print ---------- */
