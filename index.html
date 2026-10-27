@@ -121,6 +121,7 @@ label.f input:focus,label.f textarea:focus,label.f select:focus{outline:2px soli
 .p-head h1{font-size:54px;font-weight:900;letter-spacing:-1px;line-height:1}
 .p-head .meta{text-align:right;font-size:14px;line-height:1.7;padding-top:8px}
 .p-head .meta b{font-weight:700}
+.logo-img{max-height:54px;max-width:220px;object-fit:contain;display:block;margin:0 0 10px auto}
 
 .p-card{background:var(--paper-card);border-radius:22px;margin:-30px 0 26px;padding:22px 26px;
   display:grid;grid-template-columns:1fr 1fr;gap:20px}
@@ -252,7 +253,15 @@ table.p-tbl col.qty,table.p-tbl col.unit,table.p-tbl col.tot{width:94px}
           <label class="f">Phone
             <input id="fromPhone" oninput="bind()" />
           </label>
-          <div class="hint">Saved on this device. You only set this once.</div>
+          <div class="f" style="gap:6px"><span style="font-size:12px;font-weight:700;color:var(--ink-soft)">Logo (optional)</span>
+            <div class="sig-prev" id="logoPrev" style="height:58px"></div>
+            <div class="two">
+              <button type="button" class="muted-btn" onclick="document.getElementById('logoFile').click()">Upload logo</button>
+              <button type="button" class="muted-btn" onclick="clearLogo()">Remove</button>
+            </div>
+            <input id="logoFile" type="file" accept="image/*" hidden onchange="loadLogo(event)">
+          </div>
+          <div class="hint">Saved on this device. Use a white or transparent logo so it shows on the dark header.</div>
         </div>
       </details>
 
@@ -383,6 +392,7 @@ table.p-tbl col.qty,table.p-tbl col.unit,table.p-tbl col.tot{width:94px}
         <div class="p-head">
           <h1 id="pTitle">Invoice</h1>
           <div class="meta">
+            <div id="pLogo"></div>
             <div><b id="pNumLbl">Invoice No.</b> <span id="pNo"></span></div>
             <div id="pDate"></div>
             <div id="pValid" style="margin-top:4px"></div>
@@ -424,6 +434,7 @@ table.p-tbl col.qty,table.p-tbl col.unit,table.p-tbl col.tot{width:94px}
         <div class="p-head">
           <h1 style="font-size:40px">Work Summary</h1>
           <div class="meta">
+            <div id="sLogo"></div>
             <div><b>Ref.</b> <span id="sNo"></span></div>
             <div id="sDate"></div>
           </div>
@@ -483,7 +494,8 @@ function defaultProfile(){return{
   paySort:"",
   sigName:"",
   sigImg:"",
-  footer:""
+  footer:"",
+  logo:""
 };}
 function defaultDoc(){return{
   mode:"invoice",
@@ -563,6 +575,9 @@ function toggleTheme(){
 function loadSig(ev){var f=ev.target.files&&ev.target.files[0];if(!f)return;
   var r=new FileReader();r.onload=function(){profile.sigImg=r.result;render();save();};r.readAsDataURL(f);}
 function clearSig(){profile.sigImg="";render();save();}
+function loadLogo(ev){var f=ev.target.files&&ev.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(){resizeImg(r.result,540,function(d){profile.logo=d;render();save();});};r.readAsDataURL(f);}
+function clearLogo(){profile.logo="";render();save();}
+function resizeImg(src,maxW,cb){try{var img=new Image();img.onload=function(){var w=img.width,h=img.height;if(w>maxW){h=Math.round(h*maxW/w);w=maxW;}var c=document.createElement("canvas");c.width=w;c.height=h;c.getContext("2d").drawImage(img,0,0,w,h);try{cb(c.toDataURL("image/png"));}catch(e){cb(src);}};img.onerror=function(){cb(src);};img.src=src;}catch(e){cb(src);}}
 function sigHTML(cls){
   if(profile.sigImg) return '<img alt="signature" src="'+profile.sigImg+'">';
   return '<div class="cursive '+(cls||"")+'">'+esc(profile.sigName||profile.fromName)+'</div>';
@@ -774,6 +789,13 @@ function render(){
   // sig preview in rail
   var sp=document.getElementById("sigPrev");
   sp.innerHTML = profile.sigImg?('<img alt="sig" src="'+profile.sigImg+'">'):('<span>'+esc(profile.sigName||profile.fromName||"Your name")+'</span>');
+
+  // logo in document headers + rail preview
+  var logoHTML = profile.logo ? ('<img class="logo-img" alt="logo" src="'+profile.logo+'">') : "";
+  var pl=document.getElementById("pLogo"); if(pl) pl.innerHTML=logoHTML;
+  var sl=document.getElementById("sLogo"); if(sl) sl.innerHTML=logoHTML;
+  var lp=document.getElementById("logoPrev");
+  if(lp) lp.innerHTML = profile.logo?('<img alt="logo" src="'+profile.logo+'" style="max-height:48px;max-width:92%">'):('<span style="color:var(--ink-soft);font-size:12px">No logo yet</span>');
 }
 
 /* ---------- history ---------- */
